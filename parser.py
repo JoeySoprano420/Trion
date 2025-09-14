@@ -1,4 +1,4 @@
-# parser.py
+-- parser.py
 from ast import *
 
 class Parser:
@@ -6,6 +6,7 @@ class Parser:
         self.tokens = tokens
         self.pos = 0
 
+    -- Main parse loop: walks through all tokens and constructs AST nodes
     def parse(self):
         nodes = []
         while self.pos < len(self.tokens):
@@ -17,6 +18,7 @@ class Parser:
                 self.pos += 1
         return Program(nodes)
 
+    -- Utility to match current token type and optional value
     def _match(self, typ, val=None):
         if self.pos < len(self.tokens):
             t_type, t_val = self.tokens[self.pos]
@@ -24,10 +26,12 @@ class Parser:
                 return True
         return False
 
+    -- Parse a Main block definition
     def _parse_main(self):
         self.pos += 1
         return MainBlock()
 
+    -- Parse a Capsule declaration with name
     def _parse_capsule(self):
         self.pos += 1
         name = self.tokens[self.pos][1]
