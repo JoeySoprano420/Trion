@@ -58,13 +58,13 @@ X = 1, y = 2
 
 If x + y = 3
     While x + y > 0 then
-        Print: possible — therefore try
+        Print: possible -- therefore try
     Elseif x or y < 2
-        Print: possible — therefore try
+        Print: possible -- therefore try
     Elseif x + y < 4 and > 2
-        Then Print: true, and therefore execute
+        Then Print: true, -- and therefore execute
     Else
-        Print: false, — and therefore fail
+        Print: false, -- and therefore fail
 ```
 
 ---
