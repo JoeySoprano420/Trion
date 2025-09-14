@@ -16,6 +16,9 @@ def repl():
     print(f"Version {trion.__version__}")
     print("Type 'exit' or 'quit' to leave, 'help' for help.\n")
     
+    # Create a persistent interpreter for the REPL session
+    interpreter = trion.Interpreter()
+    
     while True:
         try:
             line = input("trion> ")
@@ -31,8 +34,30 @@ def repl():
             if line.strip() == '':
                 continue
             
-            result = trion.run_trion(line, "<repl>")
-            if result is not None:
+            # Use the persistent interpreter instead of run_trion
+            lexer = trion.Lexer(line, "<repl>")
+            tokens = lexer.tokenize()
+            
+            if lexer.error_reporter.has_errors():
+                lexer.error_reporter.print_errors()
+                continue
+            
+            parser = trion.Parser(tokens, "<repl>")
+            ast = parser.parse()
+            
+            if parser.error_reporter.has_errors():
+                parser.error_reporter.print_errors()
+                continue
+            
+            if ast is None:
+                continue
+            
+            result = interpreter.interpret(ast)
+            
+            if interpreter.error_reporter.has_errors():
+                interpreter.error_reporter.print_errors()
+                interpreter.error_reporter.clear()  # Clear errors for next input
+            elif result is not None:
                 print(result)
                 
         except KeyboardInterrupt:
