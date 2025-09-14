@@ -1,0 +1,10 @@
+// Hello World example in Trion
+// This demonstrates basic function calls and string literals
+
+print("Hello, World!")
+print("Welcome to Trion!")
+
+// Variables and arithmetic
+let name = "Trion"
+let version = 0.1
+print("Language: " + name + " v" + str(version))

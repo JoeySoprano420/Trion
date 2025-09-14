@@ -1,0 +1,40 @@
+// Error handling and resilience example
+// Demonstrates Trion's robust error handling capabilities
+
+function safe_divide(a, b) {
+    try {
+        if b == 0 {
+            throw "Division by zero is not allowed"
+        }
+        return a / b
+    } catch {
+        print("Error caught during division")
+        return 0
+    } finally {
+        print("Division operation completed")
+    }
+}
+
+// Test normal division
+print("10 / 2 = " + str(safe_divide(10, 2)))
+
+// Test division by zero
+print("10 / 0 = " + str(safe_divide(10, 0)))
+
+// Demonstrate type safety
+function type_check(value) {
+    let value_type = type(value)
+    print("Value: " + str(value) + ", Type: " + value_type)
+    
+    if value_type == "int" {
+        print("This is an integer")
+    } elif value_type == "str" {
+        print("This is a string")
+    } else {
+        print("This is some other type")
+    }
+}
+
+type_check(42)
+type_check("Hello")
+type_check(3.14)

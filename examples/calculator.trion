@@ -1,0 +1,33 @@
+// Calculator example demonstrating functions and control flow
+
+function add(a, b) {
+    return a + b
+}
+
+function multiply(a, b) {
+    return a * b
+}
+
+function factorial(n) {
+    if n <= 1 {
+        return 1
+    } else {
+        return n * factorial(n - 1)
+    }
+}
+
+// Test the functions
+let x = 5
+let y = 3
+
+print("Addition: " + str(x) + " + " + str(y) + " = " + str(add(x, y)))
+print("Multiplication: " + str(x) + " * " + str(y) + " = " + str(multiply(x, y)))
+print("Factorial of " + str(x) + " = " + str(factorial(x)))
+
+// Demonstrate loops
+print("Counting to 5:")
+let i = 1
+while i <= 5 {
+    print("Count: " + str(i))
+    i = i + 1
+}
