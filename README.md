@@ -419,6 +419,7 @@ Trion is **not just a language**. It is a **way of structuring logic, intention,
 
 ---
 ## -----
+
 ---
 
 ## ✍️ SYNTAX STYLE
