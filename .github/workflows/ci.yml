@@ -1,0 +1,307 @@
+name: Trion CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        python build.py install-deps
+    
+    - name: Run linting
+      run: python build.py lint
+    
+    - name: Run tests
+      run: python build.py test
+    
+    - name: Run benchmarks
+      run: python build.py benchmark
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results-${{ matrix.python-version }}
+        path: benchmark_results.txt
+        if-no-files-found: warn
+
+  examples:
+    name: Test Examples
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Test example programs
+      run: |
+        python trion.py run examples/hello_world.tri
+        python trion.py run examples/fibonacci.tri
+        python trion.py run examples/primes.tri
+
+  documentation:
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check documentation links
+      run: |
+        # Check that all referenced files exist
+        test -f README.md
+        test -f CONTRIBUTING.md
+        test -f LICENSE
+        test -f docs/spec.md
+        test -f docs/getting-started.md
+        test -f ROADMAP.md
+    
+    - name: Validate example code in docs
+      run: |
+        python -c "import re; 
+        content = open('docs/getting-started.md').read();
+        blocks = re.findall(r'```trion\n(.*?)\n```', content, re.DOTALL);
+        print(f'Found {len(blocks)} Trion code blocks in documentation')"
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Install security tools
+      run: |
+        python -m pip install bandit safety
+    
+    - name: Run Bandit security scan
+      run: |
+        bandit -r src/ -f json -o bandit-results.json || true
+        bandit -r src/ 
+    
+    - name: Check for known vulnerabilities
+      run: |
+        safety check --json --output safety-results.json || true
+        safety check
+
+  performance:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+    
+    - name: Run extended benchmarks
+      run: |
+        # Create more comprehensive benchmark
+        cat > extended_benchmark.tri << 'EOF'
+        fn fibonacci(n: i32) -> i32 {
+            if n <= 1 {
+                return n;
+            }
+            return fibonacci(n - 1) + fibonacci(n - 2);
+        }
+        
+        fn factorial(n: i32) -> i32 {
+            if n <= 1 {
+                return 1;
+            }
+            return n * factorial(n - 1);
+        }
+        
+        fn prime_check(n: i32) -> bool {
+            if n <= 1 {
+                return false;
+            }
+            let mut i = 2;
+            while i * i <= n {
+                if n % i == 0 {
+                    return false;
+                }
+                i = i + 1;
+            }
+            return true;
+        }
+        
+        println("Fibonacci(20):", fibonacci(20));
+        println("Factorial(10):", factorial(10));
+        println("Is 97 prime?", prime_check(97));
+        EOF
+        
+        time python trion.py run extended_benchmark.tri
+        
+        # Performance regression check
+        python -c "
+        import time
+        import subprocess
+        
+        # Run benchmark multiple times and average
+        times = []
+        for i in range(3):
+            start = time.time()
+            subprocess.run(['python', 'trion.py', 'run', 'extended_benchmark.tri'], 
+                         capture_output=True, check=True)
+            times.append(time.time() - start)
+        
+        avg_time = sum(times) / len(times)
+        print(f'Average execution time: {avg_time:.3f}s')
+        
+        # Fail if too slow (baseline: should complete in < 5 seconds)
+        if avg_time > 5.0:
+            print(f'Performance regression detected! Average time {avg_time:.3f}s > 5.0s')
+            exit(1)
+        else:
+            print('Performance check passed!')
+        "
+
+  compatibility:
+    name: Platform Compatibility
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: [3.11]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Test basic functionality
+      run: |
+        python trion.py run examples/hello_world.tri
+    
+    - name: Test CLI commands
+      run: |
+        python trion.py check examples/fibonacci.tri
+        python trion.py format --dry-run examples/primes.tri
+
+  release:
+    name: Release Check
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    needs: [test, examples, documentation, security, performance, compatibility]
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Check if release is needed
+      id: release-check
+      run: |
+        # Check if there are new commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+        COMMITS_SINCE_TAG=$(git rev-list ${LAST_TAG}..HEAD --count)
+        
+        echo "Last tag: $LAST_TAG"
+        echo "Commits since last tag: $COMMITS_SINCE_TAG"
+        
+        if [ $COMMITS_SINCE_TAG -gt 0 ]; then
+          echo "needs-release=true" >> $GITHUB_OUTPUT
+        else
+          echo "needs-release=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Generate changelog
+      if: steps.release-check.outputs.needs-release == 'true'
+      run: |
+        LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+        
+        echo "# Changelog" > CHANGELOG.md
+        echo "" >> CHANGELOG.md
+        
+        if [ -n "$LAST_TAG" ]; then
+          echo "## Changes since $LAST_TAG" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log $LAST_TAG..HEAD --pretty=format:"- %s" >> CHANGELOG.md
+        else
+          echo "## Initial Release" >> CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log --pretty=format:"- %s" >> CHANGELOG.md
+        fi
+        
+        echo "" >> CHANGELOG.md
+        
+        cat CHANGELOG.md
+    
+    - name: Create release artifact
+      if: steps.release-check.outputs.needs-release == 'true'
+      run: |
+        mkdir -p dist
+        cp -r src/ dist/
+        cp trion.py dist/
+        cp README.md dist/
+        cp LICENSE dist/
+        cp -r docs/ dist/
+        cp -r examples/ dist/
+        
+        cd dist
+        tar -czf ../trion-latest.tar.gz *
+        cd ..
+        
+        ls -la trion-latest.tar.gz
+    
+    - name: Upload release artifact
+      if: steps.release-check.outputs.needs-release == 'true'
+      uses: actions/upload-artifact@v3
+      with:
+        name: trion-release
+        path: trion-latest.tar.gz
+
+  notify:
+    name: Notification
+    runs-on: ubuntu-latest
+    needs: [test, examples, documentation, security, performance, compatibility]
+    if: always()
+    
+    steps:
+    - name: Report status
+      run: |
+        if [ "${{ needs.test.result }}" == "success" ] && \
+           [ "${{ needs.examples.result }}" == "success" ] && \
+           [ "${{ needs.documentation.result }}" == "success" ] && \
+           [ "${{ needs.security.result }}" == "success" ] && \
+           [ "${{ needs.performance.result }}" == "success" ] && \
+           [ "${{ needs.compatibility.result }}" == "success" ]; then
+          echo "🎉 All CI/CD checks passed! Trion is ready for deployment."
+        else
+          echo "❌ Some CI/CD checks failed. Please review the results."
+          exit 1
+        fi

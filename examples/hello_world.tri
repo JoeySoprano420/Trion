@@ -1,0 +1,6 @@
+// Hello World example in Trion
+fn main() {
+    println("Hello, World!");
+}
+
+main();
