@@ -1,32 +1,71 @@
--- lexer.py
-import re
+"""
+lexer.py
 
--- Define token types and patterns for Trion language
-TOKEN_TYPES = [
-    ("KEYWORD", r'\\b(Main|Capsule|If|Then|Else|Elseif|While|For|EndCapsule|Print|Isolate|Try|Execute|Fail|True|False)\\b'),
-    ("IDENT", r'[a-zA-Z_][a-zA-Z0-9_]*'),
-    ("NUMBER", r'\\b\\d+\\b'),
-    ("STRING", r'"[^"]*"'),
-    ("OP", r'[+*/<>=,]'),
-    ("COMMENT", r'--.*'),
-    ("NEWLINE", r'\\n'),
-    ("SKIP", r'[ \\t]+'),
-    ("MISMATCH", r'.'),
+Tokenizer for Trion language.
+
+Produces a list of (type, value) tuples suitable for the simple parser.
+Ignores whitespace, comments and newlines. Keywords are matched before identifiers.
+"""
+
+import re
+from typing import List, Tuple
+
+# Ordered token specs: order matters (KEYWORD before IDENT)
+TOKEN_SPECS = [
+    ("SKIP",     r"[ \t\r]+"),                             # spaces and tabs
+    ("COMMENT",  r"--[^\n]*"),                             # -- comment to end of line
+    ("NEWLINE",  r"\n"),                                   # newline
+    ("KEYWORD",  r"\b(?:Main|Capsule|If|Then|Else|Elseif|While|For|EndCapsule|Print|Isolate|Try|Execute|Fail|True|False)\b"),
+    ("IDENT",    r"[A-Za-z_][A-Za-z0-9_]*"),               # identifiers
+    ("NUMBER",   r"\b\d+\b"),                              # integers
+    ("STRING",   r'"(?:\\.|[^"\\])*"'),                    # double-quoted strings with escapes
+    ("OP",       r"[+\-*/<>=,:]"),                         # operators / punctuation
+    ("MISMATCH", r"."),                                    # any other single char
 ]
 
--- Tokenize input code into list of (type, value) tuples
-def tokenize(code):
-    tokens = []
-    for line in code.splitlines():
-        pos = 0
-        while pos < len(line):
-            for typ, pattern in TOKEN_TYPES:
-                regex = re.compile(pattern)
-                match = regex.match(line, pos)
-                if match:
-                    -- Ignore whitespace and comments
-                    if typ != "SKIP" and typ != "COMMENT":
-                        tokens.append((typ, match.group(0)))
-                    pos = match.end()
-                    break
+# Precompile regexes for performance
+_TOKEN_REGEXES = [(typ, re.compile(pattern)) for typ, pattern in TOKEN_SPECS]
+
+
+def tokenize(code: str) -> List[Tuple[str, str]]:
+    """
+    Tokenize Trion source `code` and return list of (type, value) tuples.
+
+    Whitespace, comments and newline tokens are ignored (not returned).
+    """
+    tokens: List[Tuple[str, str]] = []
+    pos = 0
+    length = len(code)
+
+    while pos < length:
+        for typ, regex in _TOKEN_REGEXES:
+            m = regex.match(code, pos)
+            if not m:
+                continue
+            text = m.group(0)
+            pos = m.end()
+            # skip these token types
+            if typ in ("SKIP", "COMMENT", "NEWLINE"):
+                break
+            tokens.append((typ, text))
+            break
+        else:
+            # Should not happen because MISMATCH will always match; safety fallback
+            tokens.append(("MISMATCH", code[pos]))
+            pos += 1
+
     return tokens
+
+
+if __name__ == "__main__":
+    # quick smoke test
+    sample = '''
+    Main ()
+    Capsule Greeter
+        Print: "Hello, Trion"
+    EndCapsule
+    -- a comment
+    '''
+    for t in tokenize(sample):
+        print(t)
+
