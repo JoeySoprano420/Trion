@@ -210,3 +210,43 @@ EndCapsule
 ---
 
 
+📐 TRION COMPILER: AOT ENGINE STRUCTURE (PHASE 2)
+🔧 PHASE 2 OVERVIEW
+
+Goal: Deliver a fully bootstrapped AOT compiler pipeline for the Trion Language, supporting:
+
+✅ .trn → LLVM IR → WASM / Native .exe
+
+✅ Inline NASM, HTML, Dodecagrams
+
+✅ Capsule logic container execution
+
+✅ Intrinsic pattern deduction and rule tracking
+
+✅ Base-12 support (for symbolic/mnemonic codepaths)
+
+✅ Baked-in ruleset, threaded quarantines, capsule state isolation
+
+✅ Ada-linguistic + Fortran-intrinsic expression handling
+
+🧱 PHASE 2 FILE TREE STRUCTURE
+
+trion-compiler/
+├── main.py                # Entry point (CLI compiler)
+├── lexer.py               # Tokenizer (Ada + hybrid rules)
+├── parser.py              # Capsule-aware parser
+├── ast.py                 # Abstract Syntax Tree definitions
+├── codegen.py             # LLVM IR generator
+├── nasm_embed.py          # Inline NASM embedding handler
+├── html_embed.py          # Inline HTML handler
+├── dodecagram.py          # Base-12 parser and encoder
+├── runtime/
+│   └── trion_runtime.c    # Core runtime hooks (quarantine, channels)
+├── std/
+│   ├── net.trn            # Networking capsule logic
+│   └── ai.trn             # Pattern AI definitions
+├── tests/
+│   └── hello_world.trn    # Basic test capsule
+├── README.md
+└── build.sh               # Compile all into .exe or .wasm
+
