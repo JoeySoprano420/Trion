@@ -1,0 +1,4 @@
+-- Trion Test: Hello World
+
+Main ()
+Print: hello world;
